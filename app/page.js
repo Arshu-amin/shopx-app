@@ -28,10 +28,12 @@ export default function Home() {
         if (!res.ok) throw new Error("Network error")
         return res.json()
       })
-      .then((data) => {
-        // Ensure data is strictly a flat array and limit to a safe number (e.g., 50 items max) to prevent memory crashes
-        if (Array.isArray(data)) {
-          setProducts(data.slice(0, 50))
+      .then((resData) => {
+        // Support both direct array response or standard JSON envelope { success: true, data: [...] }
+        const dataArray = Array.isArray(resData) ? resData : resData?.data;
+        
+        if (Array.isArray(dataArray)) {
+          setProducts(dataArray.slice(0, 50))
         } else {
           setProducts([])
         }
@@ -205,7 +207,7 @@ export default function Home() {
         {loading ? (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="animate-pulse bg-zinc-900 rounded-2xl overflow-hidden">
+              <div key={`skeleton-${i}`} className="animate-pulse bg-zinc-900 rounded-2xl overflow-hidden">
                 <div className="h-56 bg-zinc-800" />
                 <div className="p-4 space-y-3">
                   <div className="h-4 bg-zinc-800 rounded w-3/4" />
@@ -229,38 +231,41 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {filtered.map((p) => (
-              <article
-                key={p._id?.toString() || `${p.title || "product"}-${p.price || 0}-${p.category || "general"}`}
-                className="group bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 hover:border-amber-400/50 transition cursor-pointer"
-                onClick={() => setSelected(p)}
-              >
-                <div className="relative h-56 bg-zinc-800 overflow-hidden">
-                  {p.image ? (
-                    <Image src={p.image} alt={p.title || "Product"} fill className="object-cover" unoptimized />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-zinc-600 text-sm">No image</div>
-                  )}
-                </div>
-                <div className="p-4">
-                  <p className="text-xs text-amber-400 mb-2">{p.category || "General"}</p>
-                  <h2 className="font-semibold text-white group-hover:text-amber-400 transition-colors">{p.title || "Untitled"}</h2>
-                  <p className="text-zinc-500 text-sm mt-2 line-clamp-2">{p.description || ""}</p>
-                  <div className="mt-4 flex items-center justify-between">
-                    <span className="font-black text-amber-400">${(p.price || 0).toFixed(2)}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        addToCart(p)
-                      }}
-                      className="bg-amber-400 hover:bg-amber-300 text-zinc-900 px-3 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer"
-                    >
-                      + Add
-                    </button>
+            {filtered.map((p, index) => {
+              const uniqueKey = p._id?.toString() || `prod-${index}-${p.title}`;
+              return (
+                <article
+                  key={uniqueKey}
+                  className="group bg-zinc-900 rounded-2xl overflow-hidden border border-zinc-800 hover:border-amber-400/50 transition cursor-pointer"
+                  onClick={() => setSelected(p)}
+                >
+                  <div className="relative h-56 bg-zinc-800 overflow-hidden">
+                    {p.image ? (
+                      <Image src={p.image} alt={p.title || "Product"} fill className="object-cover" unoptimized />
+                    ) : (
+                      <div className="flex items-center justify-center h-full text-zinc-600 text-sm">No image</div>
+                    )}
                   </div>
-                </div>
-              </article>
-            ))}
+                  <div className="p-4">
+                    <p className="text-xs text-amber-400 mb-2">{p.category || "General"}</p>
+                    <h2 className="font-semibold text-white group-hover:text-amber-400 transition-colors">{p.title || "Untitled"}</h2>
+                    <p className="text-zinc-500 text-sm mt-2 line-clamp-2">{p.description || ""}</p>
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="font-black text-amber-400">${(p.price || 0).toFixed(2)}</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          addToCart(p)
+                        }}
+                        className="bg-amber-400 hover:bg-amber-300 text-zinc-900 px-3 py-1.5 rounded-full text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
@@ -309,31 +314,34 @@ export default function Home() {
                   <p>Your cart is empty</p>
                 </div>
               ) : (
-                cart.map((item) => (
-                  <div key={item._id?.toString() || `${item.title || "cart-item"}-${item.price || 0}-${item.qty || 0}` } className="flex gap-3 bg-zinc-800 rounded-xl p-3">
-                    {item.image && (
-                      <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0">
-                        <Image src={item.image} alt={item.title || "Item"} fill className="object-cover" unoptimized />
+                cart.map((item, index) => {
+                  const itemKey = item._id?.toString() || `cart-${index}-${item.title}`;
+                  return (
+                    <div key={itemKey} className="flex gap-3 bg-zinc-800 rounded-xl p-3">
+                      {item.image && (
+                        <div className="relative w-14 h-14 rounded-lg overflow-hidden shrink-0">
+                          <Image src={item.image} alt={item.title || "Item"} fill className="object-cover" unoptimized />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{item.title}</p>
+                        <p className="text-amber-400 text-sm font-bold mt-0.5">${(item.price || 0).toFixed(2)}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <button
+                            onClick={() => updateQty(item._id, -1)}
+                            className="w-6 h-6 flex items-center justify-center bg-zinc-700 hover:bg-zinc-600 rounded text-white cursor-pointer"
+                          >-</button>
+                          <span className="text-zinc-300 text-xs w-4 text-center">{item.qty}</span>
+                          <button
+                            onClick={() => updateQty(item._id, 1)}
+                            className="w-6 h-6 flex items-center justify-center bg-zinc-700 hover:bg-zinc-600 rounded text-white cursor-pointer"
+                          >+</button>
+                        </div>
                       </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{item.title}</p>
-                      <p className="text-amber-400 text-sm font-bold mt-0.5">${(item.price || 0).toFixed(2)}</p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <button
-                          onClick={() => updateQty(item._id, -1)}
-                          className="w-6 h-6 flex items-center justify-center bg-zinc-700 hover:bg-zinc-600 rounded text-white cursor-pointer"
-                        >-</button>
-                        <span className="text-zinc-300 text-xs w-4 text-center">{item.qty}</span>
-                        <button
-                          onClick={() => updateQty(item._id, 1)}
-                          className="w-6 h-6 flex items-center justify-center bg-zinc-700 hover:bg-zinc-600 rounded text-white cursor-pointer"
-                        >+</button>
-                      </div>
+                      <button onClick={() => removeFromCart(item._id)} className="text-zinc-500 hover:text-red-400 text-sm cursor-pointer">X</button>
                     </div>
-                    <button onClick={() => removeFromCart(item._id)} className="text-zinc-500 hover:text-red-400 text-sm cursor-pointer">X</button>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
             {cart.length > 0 && (
